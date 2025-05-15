@@ -1,0 +1,10 @@
+{
+  "apiVersion": "1.0",
+  "method": "set",
+  "params": {
+    "Access-Control-Allow-Origin": "http://192.168.1.223:8080",
+    "Access-Control-Expose-Headers": "WWW-Authenticate",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "authorization"
+  }
+}

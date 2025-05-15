@@ -19,7 +19,7 @@ case "$auth_choice" in
     2)
         auth_method="digest"
         ;;
-    
+
     *):
         echo "Invalid! Please enter 1 or 2"
         exit 1
@@ -30,7 +30,10 @@ echo "Choose one API: "
 echo "1) Custom HTTP header API"
 echo "2) Applications API (list)"
 echo "3) AOA API (control)"
-read -p "(1/2/3) > " api_choice
+echo "4) Record List API"
+echo "5) API List"
+echo "6) WhiteList API"
+read -p "(input a number) > " api_choice
 
 case "$api_choice" in
     1)
@@ -48,9 +51,24 @@ case "$api_choice" in
         use_json="true"
         use_jq="| jq ."
         ;;
+    4)
+        use_api="/axis-cgi/record/list.cgi?recordingid=all"
+        use_json="false"
+        use_jq=""
+        ;;
+    5)
+        use_api="/axis-cgi/apidiscovery.cgi"
+        use_json="true"
+        use_jq="| jq ."
+        ;;
+    6)
+        use_api="/local/Vaxreader/whitelist.cgi?action=get-all"
+        use_json="false"
+        use_jq=""
+        ;;
 
     *):
-        echo "Invalid! Please enter 1, 2 or 3"
+        echo "Invalid! Please enter 1 - 6"
         exit 1
         ;;
 esac
@@ -80,12 +98,12 @@ else
 fi
 
 # curl_cmd = "curl -u $username:$password --$auth_method -X $http_method"
-# 
+#
 # if [[ "$use_json" == "true" ]]; then
 #     read -e -p "A json file path for JSON input parameters: " json_path
 #     curl_cmd += " -H \"Content-Type: application/json\" -d @$json_path"
 # fi
-# 
+#
 # curl_cmd += " http://$ip_addr$use_api $use_jq"
 
 echo "Issue HTTP Request:"
