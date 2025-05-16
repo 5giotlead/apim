@@ -1,0 +1,791 @@
+// let base = `http://10.1.1.53`;
+// let host = `10.1.1.53`;
+
+let count = 0;
+const publicKey = 'swae';
+const privateKey = '5Giotlead';
+
+let encoding = 'x-h264';
+let column = 3;
+const imgSrcObj = {
+    '10.1.1.51': '/api/images/public/jF2DhlzLT1T9EdsIpuXZp11Bp812OtuM',
+    '10.1.1.52': '/api/images/public/lkkl8t3Wv5Tt5yMmeOAAZZ0J8JmAaSDO',
+    '10.1.1.53': '/api/images/public/PBXpBQhZzXXiTAEgC80THrR1QoCFh6KO',
+    '10.1.1.54': '/api/images/public/p62WYcPMpFQqNriOLdKccixyBxH8kgzv',
+    '10.1.1.55': '/api/images/public/OCLI6uXjxDBJDd7tzC1YiCVnC35YrhiK'
+};
+
+self.onInit = function() {
+    self.ctx.$scope.isRecordExist = false;
+    self.ctx.$scope.timePick = '';
+    self.ctx.$scope.deviceSelected = '';
+    self.ctx.$scope.objArr = [];
+    self.ctx.$scope.recordingArr = [];
+    self.ctx.$scope.recordingId = '';
+    self.ctx.$scope.htmlTemplate = 'Hello World';
+    self.ctx.$scope.handleChange = handleChange;
+    self.ctx.$scope.handleClockChange =
+        handleClockChange;
+    self.ctx.$scope.showTimePeriod = showTimePeriod;
+    self.ctx.$scope.expandView = expandView;
+    self.ctx.$scope.playFinished = true;
+    self.ctx.$scope.timeToStart = 0;
+    self.ctx.$scope.imgSrcObj = imgSrcObj;
+    //console.log(window.mediaStreamLibrary);
+
+    self.ctx.$scope.pipelines = window
+        .mediaStreamLibrary.pipelines;
+    self.ctx.$scope.isRtcpBye = window
+        .mediaStreamLibrary.isRtcpBye;
+
+    const da = self.ctx.data;
+    if (da.length > 0 && da[0].dataKey.type !==
+        'function') {
+        self.ctx.$scope.deviceSelected = (da[0].data[
+            0])[1];
+    }
+    da.forEach((item, i) => {
+        const obj = {};
+        obj.id = item.datasource.entityId;
+        obj.name = item.datasource.entityName;
+        obj.label = item.datasource.entityLabel;
+        if (item.dataKey.type !== 'function') {
+            obj.ip = (item.data[0])[1];
+        }
+        self.ctx.$scope.objArr.push(obj);
+        self.ctx.$scope.objArr.sort((a, b) => a
+            .name.slice(-2) - b.name.slice(-
+                2));
+    });
+    // imgSrcArr.forEach((item, i) => {
+    //     const obj = {};
+    //     obj.name = `No${i+1}`;
+    //     obj.src = item;
+    //     self.ctx.$scope.objArr.push(obj);
+    // });
+
+    // self.ctx.$scope.emptyArr = Array(column * 3 - 5).fill()
+    //     .map((x, i) => i);
+
+    //錄影紀錄設定只能選取一個月內的影像紀錄
+    const dateInput = document.getElementById(
+        'date-input');
+    const today = new Date();
+    // const yesterday = new Date(today);
+    // yesterday.setDate(today.getDate() - 1);
+    // const yesterdayString = yesterday.toISOString()
+    //     .split('T')[0];
+    const todayString = today.toISOString()
+        .split('T')[0];
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    const thirtyDaysAgoString = thirtyDaysAgo
+        .toISOString().split('T')[0];
+    dateInput.min = thirtyDaysAgoString;
+    dateInput.max = todayString;
+    
+    var clockInput = $('.clockpicker')
+        .clockpicker({
+            placement: 'bottom',
+            autoclose: true
+        });
+
+    $('.clockpicker').clockpicker()
+	.find('input').change(function(){
+		// TODO: time changed
+		handleClockChange();
+	});
+};
+
+function expandView(obj) {
+    const screenWidth = window.screen.width;
+    const screenHeight = window.screen.height;
+    self.ctx.$scope.htmlTemplate = `
+                <style>
+                    .dialog-container{
+                        width: 100%;
+                        height: 100%;
+                        box-sizing: border-box; 
+                        background: #00000099;
+                        position: relative;
+                    }
+                    .content-wrap{
+                        width: 100%;
+                        box-sizing: border-box;
+                        background: #00000099;
+                        position: absolute;
+                        padding: 6px 12px;
+                        bottom: 0;
+                        display: flex;
+                        flex-direction: row;
+                        justify-content: space-between;
+                        color: #ffffff;
+                    }
+                    .text{
+                        line-height: 1.5;
+                        z-index: 50;
+                    }
+                    .close-icon{
+                        display: block;
+                        cursor: pointer;
+                        z-index: 50;
+                    }
+                    .l-video {
+                        max-width: 1440px;
+                        width: 100%;
+                        height: 100%;
+                        object-fit: contain;
+                    }
+                    
+                    button {
+                      color: #cecece;
+                      background: rgba(0, 0, 0, 0.5);
+                      border: none;
+                      margin: 1px 1px 2px;
+                    }
+                    .player {
+                      position: relative;
+                      overflow: hidden;
+                      background: #000000;
+                    }
+                    .player__video {
+                      display: block;
+                    }
+                    .player__controls {
+                      display: flex;
+                      justify-content: center;
+                      align-items: flex-end;
+                      position: absolute;
+                      bottom: 0;
+                      width: 100%;
+                      transform: translateY(100%) translateY(-5px);
+                      transition: all 0.3s;
+                      flex-wrap: wrap;
+                      background: rgba(0, 0, 0, 0.1);
+                    }                    
+                    .player:hover .player__controls {
+                      transform: translateY(0);
+                      bottom: 6px;
+                    }
+                    .player:hover .progress {
+                      height: 16px;
+                    }
+                    .player:hover #hover-time {
+                      visibility: visible;
+                    }
+                    .progress {
+                      flex: 10;
+                      position: relative;
+                      display: flex;
+                      flex-basis: 100%;
+                      height: 5px;
+                      transition: height 0.3s;
+                      background: rgba(0, 0, 0, 0.5);
+                      cursor: pointer;
+                    }
+                    .progress__filled {
+                      width: 50%;
+                      background: #ffc600;
+                      flex: 0;
+                      flex-basis: 0%;
+                    }
+                    #hover-time {
+                      width: 50px;
+                      height: 20px;
+                      border-radius: 4px;
+                      text-align: center;
+                      color: #ffffff;
+                      background: #0000008c;
+                      position: fixed;
+                      top: 0;
+                      left: -300px;
+                      visibility: hidden;
+                      cursor: default;
+                    }
+                </style>
+                <div class="dialog-container">
+                    <div class="content-wrap">
+                        <div class="text">${showTimePeriod(obj.startTime, obj.endTime)}</div>
+                        <span class="material-icons close-icon" (click)="close()">
+                            tablet
+                        </span>
+                    </div>
+                    <div class="player">
+                        <canvas class="l-video"></canvas>
+                        <video
+                            id="camera-video" autoplay
+                            class="player__video viewer l-video">
+                        </video>
+                        <div class="player__controls">
+                        <div class="progress">
+                          <div class="progress__filled"></div>
+                        </div>
+                        <button class="player__button toggle" title="Toggle Play">►</button>
+                      </div>
+                      <div id="hover-time">00:00</div>
+                    </div>
+                </div>`;
+    self.ctx.detectChanges();
+    const $injector = self.ctx.$scope.$injector;
+    const customDialog = $injector.get(self.ctx
+        .servicesMap
+        .get('customDialog')); //use dialog service
+    setTimeout(function() {
+        customDialog.customDialog(self.ctx.$scope
+            .htmlTemplate,
+            dialogController).subscribe();
+    }, 100);
+
+    setTimeout(function() {
+        const vidoe_duration = calTimePeriod(obj
+            .startTime, obj.endTime);
+        /*get element we need*/
+        const player = document.querySelector(
+            ".player");
+        const video = player.querySelector(
+            ".viewer");
+
+        const progress = player.querySelector(
+            ".progress");
+        const progressBar = player.querySelector(
+            ".progress__filled");
+
+        const toggle = player.querySelector(
+            ".toggle");
+        const skipButtons = player.querySelectorAll(
+            "[data-skip]");
+        const ranges = player.querySelectorAll(
+            ".player__slider");
+        const hoverTime = document.getElementById(
+            "hover-time");
+
+        function togglePlay() {
+            const method = video.paused ? "play" :
+                "pause";
+            if (self.ctx.$scope.playFinished &&
+                method === "play") {
+                setTimeout(() => {
+                    self.ctx.$scope
+                        .pipeline = play(
+                            self.ctx.$scope
+                            .deviceSelected,
+                            obj.mimetype);
+                }, 0);
+            } else {
+                video[method]();
+            }
+        }
+
+        /*控制影片的播放*/
+        video.addEventListener("click", togglePlay);
+        toggle.addEventListener("click",
+            togglePlay);
+
+        function updateButton() {
+            const icon = this.paused ? "►" : "❚❚";
+            toggle.textContent = icon;
+        }
+
+        /*讓播放鍵的圖示改變*/
+        video.addEventListener("play",
+            updateButton);
+        video.addEventListener("pause",
+            updateButton);
+
+        function skip() {
+            video.currentTime += parseFloat(this
+                .dataset.skip);
+        }
+
+        /*調整影片的快進和倒退*/
+        skipButtons.forEach((button) => button
+            .addEventListener("click", skip));
+
+        function handleProgress() {
+            let percent = 0;
+            if (self.ctx.$scope.timeToStart !== 0) {
+                percent = ((self.ctx.$scope
+                        .timeToStart + video
+                        .currentTime) /
+                    vidoe_duration) * 100;
+            } else {
+                percent = (video.currentTime /
+                    vidoe_duration) * 100;
+            }
+            if (progressBar && self.ctx.$scope
+                .playFinished === false) {
+                progressBar.style.flexBasis =
+                    `${percent}%`;
+            }
+        }
+
+        /*持續更新時間軸*/
+        video.addEventListener("timeupdate",
+            handleProgress);
+
+        function scrub(e) {
+            const scrubTime = (e.offsetX / progress
+                .offsetWidth) * vidoe_duration;
+            self.ctx.$scope.timeToStart = scrubTime;
+            self.ctx.$scope.pipeline.close();
+            setTimeout(() => {
+                self.ctx.$scope.pipeline =
+                    play(self.ctx.$scope
+                        .deviceSelected, obj
+                        .mimetype);
+            }, 0);
+        }
+
+        function showTime(e) {
+            const scrubTime = (e.offsetX / progress
+                .offsetWidth) * vidoe_duration;
+            const formattedTime = new Date(
+                    formatTime(
+                        scrubTime))
+                .toLocaleTimeString();
+            // 設定 hover 時間內容
+            const hoverTime = document
+                .getElementById("hover-time");
+            hoverTime.textContent = formattedTime;
+            const x = e.clientX;
+            const y = e.clientY;
+            const elementY = progressBar
+                .getBoundingClientRect().top +
+                window.scrollY;
+            hoverTime.style.top = elementY - 20 +
+                'px';
+            hoverTime.style.left = x + 18 + 'px';
+        }
+
+        function formatTime(second) {
+            const start = new Date(obj.startTime)
+                .valueOf();
+            const overallSec = Number(start +
+                second * 1000
+            ); //changed to milliSecond
+            return overallSec;
+            // const minutes = Math.floor(second / 60);
+            // const seconds = Math.floor(second % 60);
+            // const formattedTime =
+            //     `${minutes.toString()
+            // .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+            // return formattedTime;
+            //return localTime;
+        }
+
+        /*拖拉時間軸*/
+        let mousedown = false;
+        progress.addEventListener("click", scrub);
+        //progress.addEventListener('mouseover',(e)=> showTime(e));
+        progress.addEventListener("mousemove", (
+            e) => showTime(e));
+        progress.addEventListener("mousemove", (
+            e) => mousedown && scrub(e));
+        progress.addEventListener("mousedown", () =>
+            (mousedown = true));
+        progress.addEventListener("mouseup", () => (
+            mousedown = false));
+
+        //rtsp over webSocket
+        self.ctx.$scope.recordingId = obj.id;
+        //let pipeline;
+        self.ctx.$scope.pipeline = play(self.ctx
+            .$scope
+            .deviceSelected, obj.mimetype);
+    }, 200);
+}
+
+
+function dialogController(instance) {
+    let vm = instance;
+    vm.close = function() {
+        if (self.ctx.$scope.pipeline) {
+            self.ctx.$scope.pipeline.close();
+            self.ctx.$scope.timeToStart = 0;
+            self.ctx.$scope.playFinished = true;
+        }
+        vm.dialogRef.close(null);
+    };
+}
+
+function handleChange() {
+    if (self.ctx.$scope.timePick !== '') {
+        handleClockChange();
+    } else {
+        console.log('請選擇時間');
+    }
+}
+
+function handleClockChange() {
+    const startClockInput = document.getElementById('startClock');
+    const endClockInput = document.getElementById('endClock');
+    self.ctx.$scope.sTime = startClockInput.value;
+    self.ctx.$scope.eTime = endClockInput.value;
+    if (self.ctx.$scope.deviceSelected) {
+        const base = 'http://' + self.ctx.$scope
+            .deviceSelected;
+        const date = self.ctx.$scope.timePick;
+        const taiwanTime = date + 'T00:00:00';
+        let startTime = timeToUTC(taiwanTime);
+        let stopTime = '';
+        if (self.ctx.$scope.sTime !== '') {
+            const taiwanDate = date +
+                'T' + self.ctx.$scope.sTime + ':00';
+            startTime = timeToUTC(taiwanDate);
+        }
+        if (self.ctx.$scope.eTime !== '') {
+            const dt = date + 'T' +
+                self.ctx.$scope.eTime + ':00';
+            stopTime = timeToUTC(dt);
+        }
+        getRecordingList(startTime, stopTime, base);
+    } else {
+        alert('請選擇設備');
+    }
+}
+
+async function getRecordingList(starttime, stoptime, base) {
+    self.ctx.$scope.recordingArr = [];
+    self.ctx.$scope.recordingId = '';
+    self.ctx.$scope.isRecordExist = false;
+    const dateTime = new Date(starttime);
+    if (stoptime === '') {
+        stoptime = (new Date(dateTime.setHours(dateTime
+            .getHours() + 24))).toISOString();
+    }
+    const url =
+        `${base}/axis-cgi/record/list.cgi?starttime=${starttime}&stoptime=${stoptime}`;
+    const uri =
+        `/axis-cgi/record/list.cgi?starttime=${starttime}&stoptime=${stoptime}`;
+    const authorization = getBaseAuth();
+console.log("authorization")
+console.log(authorization)
+    const data = await axios.get(`${url}`, {
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': authorization
+        }
+    }).
+    catch(err => {
+        console.log(err);
+        if (err.response.status ===
+            401) {
+            return axios.get(
+                `${base}${uri}`, {
+                    headers: {
+                        authorization
+                    }
+                });
+        }
+        self.ctx.$scope.remark = '沒有權限取得錄影清單';
+        self.ctx.detectChanges();
+        throw err;
+    }).
+    catch(err => {
+        self.ctx.$scope.remark = '無法取得錄影清單';
+        self.ctx.detectChanges();
+        throw err;
+    });
+    //console.log('getData', xmlTojson(data.data));
+    const da = xmlTojson(data.data);
+console.log("data");
+console.log(data);
+console.log("da");
+console.log(da);
+    const recordingsNum = da.root.recordings[
+        '_numberofrecordings'];
+    if (recordingsNum === '0') {
+        self.ctx.$scope.recordingArr = [];
+        self.ctx.$scope.isRecordExist = false;
+    } else if (recordingsNum === '1') {
+        const starttimelocal = da.root.recordings
+            .recording[
+                '_starttimelocal'];
+        const stoptimelocal = da.root.recordings
+            .recording[
+                '_stoptimelocal'];
+        const obj = {};
+        obj.id = da.root.recordings.recording[
+            '_recordingid'];
+        obj.date = starttimelocal.split('T')[0];
+        obj.startTime = starttimelocal;
+        obj.endTime = stoptimelocal;
+        obj.mimetype = da.root.recordings.recording
+            .video['_mimetype'].split(
+                '/')[1];
+        obj.recStatus = da.root.recordings
+            .recording['_recordingstatus'];
+        self.ctx.$scope.recordingArr.push(obj);
+        self.ctx.$scope.isRecordExist = true;
+    } else {
+        const arr = da.root.recordings
+            .recording;
+        arr.forEach((item, i) => {
+            const obj = {};
+            obj.id = item['_recordingid'];
+            obj.date = item['_starttimelocal']
+                .split('T')[0];
+            obj.startTime = item[
+                '_starttimelocal'];
+            obj.endTime = item[
+                '_stoptimelocal'];
+            obj.mimetype = item.video[
+                '_mimetype'].split('/')[1];
+            obj.recStatus = item[
+                '_recordingstatus'];
+            self.ctx.$scope.recordingArr.push(
+                obj);
+            self.ctx.$scope.isRecordExist =
+                true;
+        });
+    }
+    self.ctx.detectChanges();
+}
+
+// async function getRecordingList(starttime, base) {
+//     self.ctx.$scope.recordingArr = [];
+//     self.ctx.$scope.recordingId = '';
+//     self.ctx.$scope.isRecordExist = false;
+//     const dateTime = new Date(starttime);
+//     const stoptime = new Date(dateTime.setHours(dateTime
+//         .getHours() + 24));
+//     const url =
+//         `${base}/axis-cgi/record/list.cgi?starttime=${starttime}&stoptime=${stoptime.toISOString()}`;
+//     const uri =
+//         `/axis-cgi/record/list.cgi?starttime=${starttime}&stoptime=${stoptime.toISOString()}`;
+//     const authorization = getBaseAuth();
+//     const data = await axios.get(`${url}`, {
+//         headers: {
+//             'Content-Type': 'application/json',
+//             'Authorization': authorization
+//         }
+//     }).
+//     catch(err => {
+//         console.log(err);
+//         if (err.response.status ===
+//             401) {
+//             return axios.get(
+//                 `${base}${uri}`, {
+//                     headers: {
+//                         authorization
+//                     }
+//                 });
+//         }
+//         self.ctx.$scope.remark = '沒有權限取得錄影清單';
+//         self.ctx.detectChanges();
+//         throw err;
+//     }).
+//     catch(err => {
+//         self.ctx.$scope.remark = '無法取得錄影清單';
+//         self.ctx.detectChanges();
+//         throw err;
+//     });
+//     //console.log('getData', xmlTojson(data.data));
+//     const da = xmlTojson(data.data);
+//     const recordingsNum = da.root.recordings[
+//         '_numberofrecordings'];
+//     if (recordingsNum === '0') {
+//         self.ctx.$scope.recordingArr = [];
+//         self.ctx.$scope.isRecordExist = false;
+//     } else if (recordingsNum === '1') {
+//         const starttimelocal = da.root.recordings
+//             .recording[
+//                 '_starttimelocal'];
+//         const stoptimelocal = da.root.recordings
+//             .recording[
+//                 '_stoptimelocal'];
+//         const obj = {};
+//         obj.id = da.root.recordings.recording[
+//             '_recordingid'];
+//         obj.date = starttimelocal.split('T')[0];
+//         obj.startTime = starttimelocal;
+//         obj.endTime = stoptimelocal;
+//         obj.mimetype = da.root.recordings.recording
+//             .video['_mimetype'].split(
+//                 '/')[1];
+//         obj.recStatus = da.root.recordings
+//             .recording['_recordingstatus'];
+//         self.ctx.$scope.recordingArr.push(obj);
+//         self.ctx.$scope.isRecordExist = true;
+//     } else {
+//         const arr = da.root.recordings
+//             .recording;
+//         arr.forEach((item, i) => {
+//             const obj = {};
+//             obj.id = item['_recordingid'];
+//             obj.date = item['_starttimelocal']
+//                 .split('T')[0];
+//             obj.startTime = item[
+//                 '_starttimelocal'];
+//             obj.endTime = item[
+//             '_stoptimelocal'];
+//             obj.mimetype = item.video[
+//                 '_mimetype'].split('/')[1];
+//             obj.recStatus = item[
+//                 '_recordingstatus'];
+//             self.ctx.$scope.recordingArr.push(
+//                 obj);
+//             self.ctx.$scope.isRecordExist =
+//                 true;
+//         });
+//     }
+//     self.ctx.detectChanges();
+// }
+
+// function getDigestAuth(err, method, uri) {
+//     const authDetails = err
+//         .response.headers[
+//             'www-authenticate'
+//         ].split(', ')
+//         .map(v => v.split(
+//             '='));
+//     // console.log(
+//     //     authDetails);
+//     ++count;
+//     const nonceCount = (
+//         '00000000' +
+//         count).slice(-8);
+//     const randomString =
+//         CryptoJS.lib
+//         .WordArray.random(
+//             12).toString(
+//             CryptoJS.enc.Hex
+//         );
+//     const cnonce =
+//         randomString
+//         .substring(0, 16);
+//     const realm =
+//         authDetails[0][1]
+//         .replace(/"/g, '');
+//     const nonce =
+//         authDetails[1][1]
+//         .replace(/"/g, '') +
+//         "=" +
+//         authDetails[1][2]
+//         .replace(/"/g, '');
+//     const md = (str) => {
+//         return CryptoJS
+//             .MD5(str)
+//             .toString(
+//                 CryptoJS
+//                 .enc.Hex
+//             );
+//     };
+//     const HA1 = md(
+//         `${publicKey}:${realm}:${privateKey}`
+//     );
+//     const HA2 = md(
+//         `${method}:${uri}`
+//     );
+//     const response = md(
+//         `${HA1}:${nonce}:${nonceCount}:${cnonce}:auth:${HA2}`
+//     );
+//     const authorization =
+//         `Digest username="${publicKey}",realm="${realm}",` +
+//         `nonce="${nonce}" ,uri="${uri}",qop="auth",algorithm="MD5",` +
+//         `response="${response}",nc="${nonceCount}",cnonce="${cnonce}"`;
+//     return authorization;
+// }
+
+function getBaseAuth() {
+    const username = 'swae';
+    const passwd = '5Giotlead';
+    const basicAuth = 'Basic ' + Base64.encode(
+        username +
+        ':' + passwd);
+    return basicAuth;
+}
+
+function play(host, encoding) {
+    const videoEl = document.querySelector(
+        '#camera-video');
+    const canvasEl = document.querySelector(
+        'canvas');
+    // Grab a reference to the video element
+    let Pipeline;
+    let mediaElement;
+    if (encoding === 'x-h264') {
+        Pipeline = self.ctx.$scope.pipelines
+            .Html5VideoPipeline;
+        mediaElement = videoEl;
+        // hide the other output;
+        videoEl.style.display = '';
+        canvasEl.style.display = 'none';
+    } else {
+        Pipeline = self.ctx.$scope.pipelines
+            .Html5CanvasPipeline
+        mediaElement = canvasEl;
+        // hide the other output
+        videoEl.style.display = 'none';
+        canvasEl.style.display = '';
+    }
+    // Setup a new pipeline
+    const pipeline = new Pipeline({
+        ws: {
+            uri: `ws://swae:5Giotlead@${host}/rtsp-over-websocket`
+        },
+        rtsp: {
+            uri: `rtsp://${host}/axis-media/media.amp?recordingid=${self.ctx.$scope.recordingId}&timestamp=0&videocodec=${encoding}`
+        },
+        mediaElement,
+    });
+
+    // Restart stream on RTCP BYE (stream ended)
+    pipeline.rtsp.onRtcp = (rtcp) => {
+        if (self.ctx.$scope.isRtcpBye(rtcp)) {
+            self.ctx.$scope.timeToStart = 0;
+            self.ctx.$scope.playFinished = true;
+            // setTimeout(() => {
+            //     self.ctx.$scope.pipeline = play(host,
+            //     encoding);
+            // }, 0);
+        }
+    };
+
+    pipeline.ready.then(() => {
+        pipeline.rtsp.play(self.ctx.$scope
+            .timeToStart);
+        self.ctx.$scope.playFinished = false;
+    });
+
+    return pipeline;
+};
+
+function xmlTojson(xmlText) {
+    const x2js = new X2JS();
+    const jsonObj = x2js.xml_str2json(xmlText);
+    return jsonObj;
+}
+
+function timeToUTC(taiwanTime) {
+    const localDate = new Date(taiwanTime + "+08:00");
+    const utcDate = localDate.toISOString();
+    return utcDate;
+}
+
+function showTimePeriod(startTime, stopTime) {
+    let stop = "";
+    const start = new Date(startTime).toLocaleTimeString();
+    if(stopTime === ""){
+        stop = "NOW";
+    }else{
+        stop = new Date(stopTime).toLocaleTimeString();
+    }
+    return `${start} ~ ${stop}`;
+}
+
+function calTimePeriod(startTime, stopTime) {
+    let milliSecDiff = 0;
+    if(stopTime === ""){
+        milliSecDiff = new Date().valueOf() -
+        new Date(startTime).valueOf();
+    }else{
+        milliSecDiff = new Date(stopTime).valueOf() -
+        new Date(startTime).valueOf();
+    }
+    return milliSecDiff / 1000;
+}
+
+self.onDataUpdated = function() {}
+
+self.onDestroy = function() {}
