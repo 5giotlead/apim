@@ -12,7 +12,8 @@ const imgSrcObj = {
     '10.1.1.52': '/api/images/public/lkkl8t3Wv5Tt5yMmeOAAZZ0J8JmAaSDO',
     '10.1.1.53': '/api/images/public/PBXpBQhZzXXiTAEgC80THrR1QoCFh6KO',
     '10.1.1.54': '/api/images/public/p62WYcPMpFQqNriOLdKccixyBxH8kgzv',
-    '10.1.1.55': '/api/images/public/OCLI6uXjxDBJDd7tzC1YiCVnC35YrhiK'
+    '10.1.1.55': '/api/images/public/OCLI6uXjxDBJDd7tzC1YiCVnC35YrhiK',
+    '192.168.1.57': '/api/images/public/eBC08xydoQHbFIJ4kSDfeihmyYYRuyEg'
 };
 
 self.onInit = function() {
@@ -458,8 +459,9 @@ async function getRecordingList(starttime, stoptime, base) {
     const uri =
         `/axis-cgi/record/list.cgi?starttime=${starttime}&stoptime=${stoptime}`;
     const authorization = getBaseAuth();
-console.log("authorization")
-console.log(authorization)
+console.log("url");
+console.log(url);
+    
     const data = await axios.get(`${url}`, {
         headers: {
             'Content-Type': 'application/json',
@@ -470,6 +472,8 @@ console.log(authorization)
         console.log(err);
         if (err.response.status ===
             401) {
+            const authorization = getDigestAuth(
+                err, 'GET', uri);
             return axios.get(
                 `${base}${uri}`, {
                     headers: {
@@ -488,10 +492,10 @@ console.log(authorization)
     });
     //console.log('getData', xmlTojson(data.data));
     const da = xmlTojson(data.data);
-console.log("data");
-console.log(data);
-console.log("da");
-console.log(da);
+//console.log("data");
+//console.log(data);
+//console.log("da");
+//console.log(da);
     const recordingsNum = da.root.recordings[
         '_numberofrecordings'];
     if (recordingsNum === '0') {
@@ -632,60 +636,60 @@ console.log(da);
 //     self.ctx.detectChanges();
 // }
 
-// function getDigestAuth(err, method, uri) {
-//     const authDetails = err
-//         .response.headers[
-//             'www-authenticate'
-//         ].split(', ')
-//         .map(v => v.split(
-//             '='));
-//     // console.log(
-//     //     authDetails);
-//     ++count;
-//     const nonceCount = (
-//         '00000000' +
-//         count).slice(-8);
-//     const randomString =
-//         CryptoJS.lib
-//         .WordArray.random(
-//             12).toString(
-//             CryptoJS.enc.Hex
-//         );
-//     const cnonce =
-//         randomString
-//         .substring(0, 16);
-//     const realm =
-//         authDetails[0][1]
-//         .replace(/"/g, '');
-//     const nonce =
-//         authDetails[1][1]
-//         .replace(/"/g, '') +
-//         "=" +
-//         authDetails[1][2]
-//         .replace(/"/g, '');
-//     const md = (str) => {
-//         return CryptoJS
-//             .MD5(str)
-//             .toString(
-//                 CryptoJS
-//                 .enc.Hex
-//             );
-//     };
-//     const HA1 = md(
-//         `${publicKey}:${realm}:${privateKey}`
-//     );
-//     const HA2 = md(
-//         `${method}:${uri}`
-//     );
-//     const response = md(
-//         `${HA1}:${nonce}:${nonceCount}:${cnonce}:auth:${HA2}`
-//     );
-//     const authorization =
-//         `Digest username="${publicKey}",realm="${realm}",` +
-//         `nonce="${nonce}" ,uri="${uri}",qop="auth",algorithm="MD5",` +
-//         `response="${response}",nc="${nonceCount}",cnonce="${cnonce}"`;
-//     return authorization;
-// }
+function getDigestAuth(err, method, uri) {
+    const authDetails = err
+    .response.headers[
+             'www-authenticate'
+        ].split(', ')
+        .map(v => v.split(
+            '='));
+    // console.log(
+    //     authDetails);
+    ++count;
+    const nonceCount = (
+        '00000000' +
+        count).slice(-8);
+    const randomString =
+        CryptoJS.lib
+        .WordArray.random(
+            12).toString(
+            CryptoJS.enc.Hex
+        );
+    const cnonce =
+        randomString
+        .substring(0, 16);
+    const realm =
+        authDetails[0][1]
+        .replace(/"/g, '');
+    const nonce =
+        authDetails[1][1]
+        .replace(/"/g, '') +
+        "=" +
+        authDetails[1][2]
+         .replace(/"/g, '');
+     const md = (str) => {
+         return CryptoJS
+             .MD5(str)
+             .toString(
+                 CryptoJS
+                 .enc.Hex
+             );
+     };
+     const HA1 = md(
+         `${publicKey}:${realm}:${privateKey}`
+     );
+     const HA2 = md(
+         `${method}:${uri}`
+     );
+     const response = md(
+         `${HA1}:${nonce}:${nonceCount}:${cnonce}:auth:${HA2}`
+     );
+     const authorization =
+         `Digest username="${publicKey}",realm="${realm}",` +
+         `nonce="${nonce}" ,uri="${uri}",qop="auth",algorithm="MD5",` +
+         `response="${response}",nc="${nonceCount}",cnonce="${cnonce}"`;
+     return authorization;
+}
 
 function getBaseAuth() {
     const username = 'swae';
